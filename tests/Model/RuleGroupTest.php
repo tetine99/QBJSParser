@@ -9,32 +9,19 @@ use PHPUnit\Framework\TestCase;
 
 class RuleGroupTest extends TestCase
 {
-    /**
-     * @var RuleGroupInterface
-     */
-    private $ruleGroup;
-
-    public function setup()
+    public function testModeOr()
     {
-        // do both! neither of these should render an exception
-        $this->ruleGroup = new RuleGroup(RuleGroup::MODE_OR);
-        $this->ruleGroup = new RuleGroup(RuleGroup::MODE_AND);
+        self::assertInstanceOf(RuleGroupInterface::class, new RuleGroup(RuleGroup::MODE_OR));
     }
 
-    /**
-     * @test
-     */
-    public function testRuleGroupImplementsInterface()
+    public function testModeAnd()
     {
-        self::assertInstanceOf(RuleGroupInterface::class, $this->ruleGroup);
+        self::assertInstanceOf(RuleGroupInterface::class, new RuleGroup(RuleGroup::MODE_AND));
     }
 
-    /**
-     * @test
-     */
-    public function testConstructionException()
+    public function testInvalidMode()
     {
-        $this->expectException(RuleGroupConstructionException::class);
+        self::expectException(RuleGroupConstructionException::class);
 
         new RuleGroup(1000);
     }

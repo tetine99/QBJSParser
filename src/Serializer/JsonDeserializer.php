@@ -4,6 +4,7 @@ namespace FL\QBJSParser\Serializer;
 
 use FL\QBJSParser\Exception\Serializer\JsonDeserializerInvalidJsonException;
 use FL\QBJSParser\Exception\Serializer\JsonDeserializerConditionException;
+use FL\QBJSParser\Exception\Serializer\JsonDeserializerUnexpectedTypeException;
 use FL\QBJSParser\Exception\Serializer\JsonDeserializerRuleKeyException;
 use FL\QBJSParser\Model\Rule;
 use FL\QBJSParser\Model\RuleGroup;
@@ -33,7 +34,7 @@ class JsonDeserializer implements DeserializerInterface
     private function deserializeRuleGroup(array $decodedRuleGroup): RuleGroupInterface
     {
         if (!array_key_exists('condition', $decodedRuleGroup)) {
-            throw new JsonDeserializerConditionException('Missing condition in RuleGroup');
+            throw new JsonDeserializerConditionException('Missing key condition in RuleGroup');
         }
 
         $deserializedRuleGroup = new RuleGroup($decodedRuleGroup['condition']);
@@ -58,14 +59,14 @@ class JsonDeserializer implements DeserializerInterface
      */
     private function deserializeRule(array $decodedRule): RuleInterface
     {
-        $missingKey = (
-            (!array_key_exists('id', $decodedRule)) ||
-            (!array_key_exists('field', $decodedRule)) ||
-            (!array_key_exists('type', $decodedRule)) ||
-            (!array_key_exists('operator', $decodedRule)) ||
-            (!array_key_exists('value', $decodedRule))
+        $requiredKeyIsMissing = !(
+            array_key_exists('id', $decodedRule)
+            && array_key_exists('field', $decodedRule)
+            && array_key_exists('type', $decodedRule)
+            && array_key_exists('operator', $decodedRule)
+            && array_key_exists('value', $decodedRule)
         );
-        if ($missingKey) {
+        if ($requiredKeyIsMissing) {
             $keysGiven = implode(', ', array_keys($decodedRule));
 
             throw new JsonDeserializerRuleKeyException('Keys given: '.$keysGiven.'. Expected id, field, type, operator, value');
@@ -77,15 +78,17 @@ class JsonDeserializer implements DeserializerInterface
         $operator = $decodedRule['operator'];
         $value = $decodedRule['value'];
 
-        // operators in and not_in require an array, the next two lines ensure that single values are converted to an array
+        // operators in and not_in require an array, ensure that single values are converted to an array
         if (in_array($operator, ['in', 'not_in']) && !is_array($value)) {
             $value = [$value];
         }
-        // some operators require a single value, the next two lines ensure that arrays are converted to a single value
-        if (in_array($operator, ['equal', 'not_equal', 'less', 'less_or_equal', 'greater', 'greater_or_equal', 'begins_with', 'not_begins_with', 'contains', 'ends_with', 'not_ends_with'])) {
-            if (is_array($value)) {
-                $value = array_values($value)[0];
-            }
+
+        // some operators require a single value, ensure that arrays are converted to a single value
+        if (
+            in_array($operator, ['equal', 'not_equal', 'less', 'less_or_equal', 'greater', 'greater_or_equal', 'begins_with', 'not_begins_with', 'contains', 'ends_with', 'not_ends_with'])
+            && is_array($value)
+        ) {
+            $value = array_values($value)[0];
         }
 
         if (!is_array($value)) {
@@ -111,10 +114,12 @@ class JsonDeserializer implements DeserializerInterface
     private function convertValueAccordingToType(string $type, $value)
     {
         if (is_null($value) || $value === 'null' || $value === 'NULL') {
-            return; // nulls shouldn't be converted
+            return null;
         }
 
         switch ($type) { /* @see Rule::$type */
+            default:
+                throw new JsonDeserializerUnexpectedTypeException(sprintf('Unexpected type %s', $type));
             case 'string':
                 return strval($value);
             case 'integer':
@@ -127,8 +132,6 @@ class JsonDeserializer implements DeserializerInterface
                 return new \DateTimeImmutable($value);
             case 'boolean':
                 return boolval($value);
-            default:
-                return $value;
         }
     }
 }

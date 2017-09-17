@@ -2,134 +2,169 @@
 
 namespace FL\QBJSParser\Tests\Serializer;
 
+use FL\QBJSParser\Exception\Serializer\JsonDeserializerConditionException;
+use FL\QBJSParser\Exception\Serializer\JsonDeserializerInvalidJsonException;
+use FL\QBJSParser\Exception\Serializer\JsonDeserializerRuleKeyException;
+use FL\QBJSParser\Exception\Serializer\JsonDeserializerUnexpectedTypeException;
 use FL\QBJSParser\Model\Rule;
 use FL\QBJSParser\Model\RuleGroup;
 use FL\QBJSParser\Model\RuleGroupInterface;
 use FL\QBJSParser\Serializer\JsonDeserializer;
-use FL\QBJSParser\Tests\Util\Doctrine\Mock\DoctrineParser\MockEntityDoctrineParser;
 use PHPUnit\Framework\TestCase;
 
 class JsonDeserializerTest extends TestCase
 {
-    /**
-     * @var string
-     */
-    private $inputJsonString;
-
-    /**
-     * @var RuleGroupInterface
-     */
-    private $expectedOutputRuleGroup;
-
-    public function setUp()
+    public function testDeserializationSuccessful()
     {
-        $this->inputJsonString =
-            '{'.
-                '"condition":"AND",'.
-                '"rules":['.
-                    '{"id":"price","field":"price","type":"double","input":"text","operator":"less","value":"10.25"},'.
-                    '{"id":"price","field":"price","type":"double","input":"text","operator":"in","value":["10.25", "3.23", "5.22"]},'.
-                    '{"id":"price","field":"price","type":"double","input":"text","operator":"between","value":["0.2", "100.3"]},'.
-                    '{"id":"price","field":"price","type":"double","input":"text","operator":"not_between","value":["2.2", "12.3"]},'.
-                    '{"id":"name","field":"name","type":"string","input":"text","operator":"in","value":["some_name", "another_name", null]},'.
-                    '{"id":"name","field":"name","type":"string","input":"text","operator":"not_in","value":["some_name", "another_name", null]},'.
-                    '{'.
-                        '"condition":"OR",'.
-                        '"rules":['.
-                            '{"id":"category","field":"category","type":"integer","input":"select","operator":"equal","value":"2"},'.
-                            '{"id":"category","field":"category","type":"integer","input":"select","operator":"equal","value":"1"},'.
-                            '{"id":"category","field":"category","type":"integer","input":"select","operator":"is_not_null","value":null}'.
-                        ']'.
-                    '}'.
-                ']'.
-            '}';
+        $inputJsonString = '{
+            "condition":"AND",
+            "rules":[
+                {"id":"price","field":"price","type":"double","input":"text","operator":"less","value":"10.25"},
+                {"id":"price","field":"price","type":"double","input":"text","operator":"in","value":["10.25", "3.23", "5.22"]},
+                {"id":"price","field":"price","type":"double","input":"text","operator":"between","value":["0.2", "100.3"]},
+                {"id":"price","field":"price","type":"double","input":"text","operator":"not_between","value":["2.2", "12.3"]},
+                {"id":"name","field":"name","type":"string","input":"text","operator":"in","value":["some_name", "another_name", null]},
+                {"id":"name","field":"name","type":"string","input":"text","operator":"not_in","value":["some_name", "another_name", null]},
+                {"id":"date","field":"date","type":"datetime","input":"text","operator":"in","value":["2017-08-03 14:12:12"]},
+                {"id":"date","field":"date","type":"datetime","input":"text","operator":"not_in","value":["2017-08-03 14:12:12"]},
+                {"id":"flag","field":"flag","type":"boolean","input":"checkbox","operator":"equal","value":true},
+                {
+                    "condition":"OR",
+                    "rules":[
+                        {"id":"category","field":"category","type":"integer","input":"select","operator":"equal","value":"2"},
+                        {"id":"category","field":"category","type":"integer","input":"select","operator":"equal","value":"1"},
+                        {"id":"category","field":"category","type":"integer","input":"select","operator":"is_not_null","value":null}
+                    ]
+                }
+            ]
+        }';
 
-        $ruleGroupA = (new RuleGroup(RuleGroupInterface::MODE_AND))
-            ->addRule(
-                new Rule('price', 'price', 'double', 'less', 10.25)
-            )
-            ->addRule(
-                new Rule('price', 'price', 'double', 'in', [10.25, 3.23, 5.22])
-            )
-            ->addRule(
-                new Rule('price', 'price', 'double', 'between', [0.2, 100.3])
-            )
-            ->addRule(
-                new Rule('price', 'price', 'double', 'not_between', [2.2, 12.3])
-            )
-            ->addRule(
-                new Rule('name', 'name', 'string', 'in', ['some_name', 'another_name', null])
-            )
-            ->addRule(
-                new Rule('name', 'name', 'string', 'not_in', ['some_name', 'another_name', null])
+        $expectedOutputRuleGroup = (new RuleGroup(RuleGroupInterface::MODE_AND))
+            ->addRule(new Rule('price', 'price', 'double', 'less', 10.25))
+            ->addRule(new Rule('price', 'price', 'double', 'in', [10.25, 3.23, 5.22]))
+            ->addRule(new Rule('price', 'price', 'double', 'between', [0.2, 100.3]))
+            ->addRule(new Rule('price', 'price', 'double', 'not_between', [2.2, 12.3]))
+            ->addRule(new Rule('name', 'name', 'string', 'in', ['some_name', 'another_name', null]))
+            ->addRule(new Rule('name', 'name', 'string', 'not_in', ['some_name', 'another_name', null]))
+            ->addRule(new Rule('date', 'date', 'datetime', 'in', [new \DateTimeImmutable('2017-08-03 14:12:12')]))
+            ->addRule(new Rule('date', 'date', 'datetime', 'not_in', [new \DateTimeImmutable('2017-08-03 14:12:12')]))
+            ->addRule(new Rule('flag', 'flag', 'boolean', 'equal', true))
+            ->addRuleGroup(
+                (new RuleGroup(RuleGroupInterface::MODE_OR))
+                    ->addRule(new Rule('category', 'category', 'integer', 'equal', 2))
+                    ->addRule(new Rule('category', 'category', 'integer', 'equal', 1))
+                    ->addRule(new Rule('category', 'category', 'integer', 'is_not_null', null))
             )
         ;
-        $ruleGroupA->addRuleGroup(
-            (new RuleGroup(RuleGroupInterface::MODE_OR))
-                ->addRule(
-                    new Rule('category', 'category', 'integer', 'equal', 2)
-                )
-                ->addRule(
-                    new Rule('category', 'category', 'integer', 'equal', 1)
-                )
-                ->addRule(
-                    new Rule('category', 'category', 'integer', 'is_not_null', null)
-                )
-        );
-
-        $this->expectedOutputRuleGroup = $ruleGroupA;
-    }
-
-    /**
-     * @test
-     */
-    public function testDeserialization()
-    {
-        $jsonDeserializer = new JsonDeserializer();
-        $deserializedRuleGroup = $jsonDeserializer->deserialize($this->inputJsonString);
-        $this->assertRuleGroupsAreEqual($deserializedRuleGroup, $this->expectedOutputRuleGroup);
-    }
-
-    /**
-     * @test
-     */
-    public function testParsing()
-    {
-        $ruleGroupA = new RuleGroup(RuleGroupInterface::MODE_AND);
-        $ruleGroupA_RuleA = new Rule('price', 'price', 'double', 'less', 10.25);
-        $ruleGroupA_RuleB = new Rule('date', 'date', 'datetime', 'in', [new \DateTimeImmutable('2017-08-03 14:12:12')]);
-        $ruleGroupA_RuleC = new Rule('date', 'date', 'datetime', 'in', [new \DateTimeImmutable('2017-08-03 14:12:12')]);
-        $ruleGroupA_RuleD = new Rule('date', 'date', 'datetime', 'not_in', [new \DateTimeImmutable('2017-08-03 14:12:12')]);
-        $ruleGroupA->addRule($ruleGroupA_RuleA);
-        $ruleGroupA->addRule($ruleGroupA_RuleB);
-        $ruleGroupA->addRule($ruleGroupA_RuleC);
-        $ruleGroupA->addRule($ruleGroupA_RuleD);
-
-        $jsonString =
-            '{'.
-                '"condition":"AND",'.
-                '"rules":['.
-                    '{"id":"price","field":"price","type":"double","input":"text","operator":"less","value":"10.25"},'.
-                    '{"id":"date","field":"date","type":"datetime","input":"text","operator":"in","value":["2017-08-03 14:12:12"]},'.
-                    // operators in and not_in require an array, the next two lines test that single values are converted to an array
-                    '{"id":"date","field":"date","type":"datetime","input":"text","operator":"in","value":"2017-08-03 14:12:12"},'.
-                    '{"id":"date","field":"date","type":"datetime","input":"text","operator":"not_in","value":"2017-08-03 14:12:12"}'.
-                ']'.
-            '}';
 
         $jsonDeserializer = new JsonDeserializer();
-        $deserializedRuleGroup = $jsonDeserializer->deserialize($jsonString);
+        $deserializedRuleGroup = $jsonDeserializer->deserialize($inputJsonString);
 
-        $mockDoctrineParser = new MockEntityDoctrineParser();
-        $mockDoctrineParser->parse($deserializedRuleGroup);
-        $this->assertRuleGroupsAreEqual($deserializedRuleGroup, $ruleGroupA);
+        self::assertRuleGroupsAreEqual($deserializedRuleGroup, $expectedOutputRuleGroup);
+    }
+
+    public function testArrayConvertedToSingleValue()
+    {
+        $inputJsonString = '{
+            "condition":"AND",
+            "rules":[
+                {"id":"price","field":"price","type":"double","input":"text","operator":"less","value":["10.25"]}
+            ]
+        }';
+
+        $expectedOutputRuleGroup = (new RuleGroup(RuleGroupInterface::MODE_AND))
+            ->addRule(new Rule('price', 'price', 'double', 'less', 10.25))
+        ;
+
+        $jsonDeserializer = new JsonDeserializer();
+        $deserializedRuleGroup = $jsonDeserializer->deserialize($inputJsonString);
+
+        self::assertRuleGroupsAreEqual($deserializedRuleGroup, $expectedOutputRuleGroup);
+    }
+
+    public function testSingleValueConvertedToArray()
+    {
+        $inputJsonString = '{
+            "condition":"AND",
+            "rules":[
+                {"id":"price","field":"price","type":"double","input":"text","operator":"in","value":"10.25"}
+            ]
+        }';
+
+        $expectedOutputRuleGroup = (new RuleGroup(RuleGroupInterface::MODE_AND))
+            ->addRule(new Rule('price', 'price', 'double', 'in', [10.25]))
+        ;
+
+        $jsonDeserializer = new JsonDeserializer();
+        $deserializedRuleGroup = $jsonDeserializer->deserialize($inputJsonString);
+
+        self::assertRuleGroupsAreEqual($deserializedRuleGroup, $expectedOutputRuleGroup);
+    }
+
+    public function testInvalidJsonThrowsException()
+    {
+        $inputJsonString = '{
+            "condition":"AND",
+            "rules":[
+                {"id":"price","field":"price","type":"float","input":"text","operator":"less","value":"10.25"},
+            ]
+        }';
+
+        self::expectException(JsonDeserializerInvalidJsonException::class);
+
+        $jsonDeserializer = new JsonDeserializer();
+        $jsonDeserializer->deserialize($inputJsonString);
+    }
+
+    public function testUnexpectedTypeThrowsException()
+    {
+        $inputJsonString = '{
+            "condition":"AND",
+            "rules":[
+                {"id":"price","field":"price","type":"float","input":"text","operator":"less","value":"10.25"}
+            ]
+        }';
+
+        self::expectException(JsonDeserializerUnexpectedTypeException::class);
+
+        $jsonDeserializer = new JsonDeserializer();
+        $jsonDeserializer->deserialize($inputJsonString);
+    }
+
+    public function testMissingRuleArrayKeyThrowsException()
+    {
+        $inputJsonString = '{
+            "condition":"AND",
+            "rules":[
+                {"id":"price","field":"price","type":"float","input":"text","operator":"less"}
+            ]
+        }';
+
+        self::expectException(JsonDeserializerRuleKeyException::class);
+
+        $jsonDeserializer = new JsonDeserializer();
+        $jsonDeserializer->deserialize($inputJsonString);
+    }
+
+    public function testMissingRuleGroupArrayKeyThrowsException()
+    {
+        $inputJsonString = '{
+            "rules":[
+                {"id":"price","field":"price","type":"float","input":"text","operator":"less","value":"10.25"}
+            ]
+        }';
+
+        self::expectException(JsonDeserializerConditionException::class);
+
+        $jsonDeserializer = new JsonDeserializer();
+        $jsonDeserializer->deserialize($inputJsonString);
     }
 
     /**
      * @param RuleGroupInterface $ruleGroupA
      * @param RuleGroupInterface $ruleGroupB
      */
-    public function assertRuleGroupsAreEqual(RuleGroupInterface $ruleGroupA, RuleGroupInterface $ruleGroupB)
+    public static function assertRuleGroupsAreEqual(RuleGroupInterface $ruleGroupA, RuleGroupInterface $ruleGroupB)
     {
         /*
          * Verify descendants are equal, recursively
@@ -148,13 +183,13 @@ class JsonDeserializerTest extends TestCase
             if (!isset($ruleGroups_inRuleGroupB[$key])) {
                 self::fail('Number of RuleGroups not matching');
             }
-            $this->assertRuleGroupsAreEqual($ruleGroup, $ruleGroups_inRuleGroupB[$key]);
+            self::assertRuleGroupsAreEqual($ruleGroup, $ruleGroups_inRuleGroupB[$key]);
         }
         foreach ($ruleGroups_inRuleGroupB as $key => $ruleGroup) { // do both, in case $ruleGroups_inRuleGroupB has more ruleGroups than $ruleGroups_inRuleGroupA
             if (!isset($ruleGroups_inRuleGroupA[$key])) {
                 self::fail('Number of RuleGroups not matching');
             }
-            $this->assertRuleGroupsAreEqual($ruleGroup, $ruleGroups_inRuleGroupA[$key]);
+            self::assertRuleGroupsAreEqual($ruleGroup, $ruleGroups_inRuleGroupA[$key]);
         }
 
         /*
