@@ -59,10 +59,10 @@ abstract class WherePartialParser
         static::$dqlPartialWhereString = '';
 
         // populate static::$dqlPartialWhereString and static::$parameters
-        if (
-            count($ruleGroup->getRuleGroups()) !== 0 ||
-            count($ruleGroup->getRules()) !== 0
-        ) {
+        if (!(
+            count($ruleGroup->getRuleGroups()) === 0
+            && count($ruleGroup->getRules()) === 0
+        )) {
             static::parseRuleGroup($ruleGroup, ' WHERE ( ', ' ) ');
         }
 
@@ -213,7 +213,7 @@ abstract class WherePartialParser
             'is_not_null' => 'IS NOT NULL',
         ];
 
-        if (!isset($dictionary[$queryBuilderOperator])) {
+        if (!array_key_exists($queryBuilderOperator, $dictionary)) {
             throw new InvalidOperatorException();
         }
 

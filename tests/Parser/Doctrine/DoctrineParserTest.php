@@ -4,6 +4,7 @@ namespace FL\QBJSParser\Tests\Parser\Doctrine;
 
 use FL\QBJSParser\Exception\Parser\Doctrine\FieldMappingException;
 use FL\QBJSParser\Exception\Parser\Doctrine\InvalidClassNameException;
+use FL\QBJSParser\Exception\Parser\Doctrine\InvalidFieldException;
 use FL\QBJSParser\Model\Rule;
 use FL\QBJSParser\Model\RuleGroup;
 use FL\QBJSParser\Model\RuleGroupInterface;
@@ -39,6 +40,18 @@ class DoctrineParserTest extends TestCase
         new DoctrineParser('This_Really_Long_Class_Name_With_Invalid_Characters_@#_IS_NOT_A_CLASS', [], []);
     }
 
+    public function testInvalidFieldExceptionThrown()
+    {
+        $ruleGroup = (new RuleGroup(RuleGroupInterface::MODE_AND))
+            ->addRule(new Rule('rule_id', 'invalid_field', 'double', 'is_not_null', null))
+        ;
+
+        self::expectException(InvalidFieldException::class);
+
+        $parser = new MockEntityDoctrineParser();
+        $parser->parse($ruleGroup);
+    }
+
     public function testRuleAndOrderBy()
     {
         $ruleGroup = (new RuleGroup(RuleGroupInterface::MODE_AND))
@@ -50,7 +63,6 @@ class DoctrineParserTest extends TestCase
         ;
 
         $parser = new MockEntityDoctrineParser();
-
         $parsed = $parser->parse($ruleGroup, ['price' => 'ASC']);
 
         self::assertEquals($expectedDql, $parsed->getQueryString());
@@ -64,11 +76,26 @@ class DoctrineParserTest extends TestCase
             .'ORDER BY object.date ASC';
 
         $parser = new MockEntityDoctrineParser();
-
         $parsed = $parser->parse($ruleGroup, ['date' => 'ASC']);
 
         self::assertEquals($expectedDql, $parsed->getQueryString());
         self::assertEquals([], $parsed->getParameters());
+    }
+
+    public function testArrayValues()
+    {
+        $ruleGroup = (new RuleGroup(RuleGroupInterface::MODE_AND))
+            ->addRule(new Rule('rule_id', 'date', 'date', 'in', [new \DateTimeImmutable('2017-09-18')]))
+            ->addRule(new Rule('rule_id', 'date', 'date', 'between', [new \DateTimeImmutable('2017-09-17'), new \DateTimeImmutable('2017-09-19')]))
+        ;
+        $expectedDql = 'SELECT object FROM ' . MockEntity::class . ' object'
+            .' WHERE ( object.date IN (?0) AND object.date BETWEEN ?1 AND ?2 )'
+        ;
+
+        $parser = new MockEntityDoctrineParser();
+        $parsed = $parser->parse($ruleGroup);
+
+        self::assertEquals($expectedDql, $parsed->getQueryString());
     }
 
     public function testRuleGroupAndMultipleSortColumns()
