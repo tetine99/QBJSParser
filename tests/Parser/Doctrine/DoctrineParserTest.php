@@ -14,7 +14,6 @@ use FL\QBJSParser\Tests\Util\Doctrine\Mock\DoctrineParser\MockEntityDoctrinePars
 use FL\QBJSParser\Tests\Util\Doctrine\Mock\DoctrineParser\MockEntityWithAssociationDoctrineParser;
 use FL\QBJSParser\Tests\Util\Doctrine\Mock\DoctrineParser\MockEntityWithEmbeddableDoctrineParser;
 use FL\QBJSParser\Tests\Util\Doctrine\Mock\Entity\MockEntity;
-use FL\QBJSParser\Tests\Util\Doctrine\Test\DoctrineParserTestCase;
 use PHPUnit\Framework\TestCase;
 
 class DoctrineParserTest extends TestCase
@@ -40,55 +39,40 @@ class DoctrineParserTest extends TestCase
         new DoctrineParser('This_Really_Long_Class_Name_With_Invalid_Characters_@#_IS_NOT_A_CLASS', [], []);
     }
 
-    /**
-     * @dataProvider entityParseCasesProvider
-     * @dataProvider associationParseCasesProvider
-     * @dataProvider embeddableParseCasesProvider
-     *
-     * @param DoctrineParserTestCase $testCase
-     */
-    public function testParserReturnsExpectedDqlAndParameters(DoctrineParserTestCase $testCase)
+    public function testRuleAndOrderBy()
     {
-        $parsed = $testCase->getDoctrineParser()->parse($testCase->getRuleGroup(), $testCase->getSortColumns());
-
-        $dqlString = $parsed->getQueryString();
-        $parameters = $parsed->getParameters();
-
-        self::assertEquals($testCase->getExpectedDqlString(), $dqlString);
-        self::assertEquals($testCase->getExpectedParameters(), $parameters);
-    }
-
-    public function entityParseCasesProvider(): array
-    {
-        $testCases = [];
-
         $ruleGroup = (new RuleGroup(RuleGroupInterface::MODE_AND))
             ->addRule(new Rule('rule_id', 'price', 'double', 'is_not_null', null))
         ;
-        $testCases[] = [new DoctrineParserTestCase(
-            new MockEntityDoctrineParser(),
-            $ruleGroup,
-            [
-                'price' => 'ASC',
-            ],
-            'SELECT object FROM '.MockEntity::class.' object WHERE ( object.price IS NOT NULL ) '.
-            'ORDER BY object.price ASC',
-            []
-        )];
+        $expectedDql = 'SELECT object FROM ' . MockEntity::class . ' object'
+            .' WHERE ( object.price IS NOT NULL )'
+            .' ORDER BY object.price ASC'
+        ;
 
-        // no where clause
+        $parser = new MockEntityDoctrineParser();
+
+        $parsed = $parser->parse($ruleGroup, ['price' => 'ASC']);
+
+        self::assertEquals($expectedDql, $parsed->getQueryString());
+        self::assertEquals([], $parsed->getParameters());
+    }
+
+    public function testNoRuleAndOrderBy()
+    {
         $ruleGroup = new RuleGroup(RuleGroupInterface::MODE_AND);
-        $testCases[] = [new DoctrineParserTestCase(
-            new MockEntityDoctrineParser(),
-            $ruleGroup,
-            [
-                'date' => 'ASC',
-            ],
-            'SELECT object FROM '.MockEntity::class.' object '.
-            'ORDER BY object.date ASC',
-            []
-        )];
+        $expectedDql = 'SELECT object FROM ' . MockEntity::class . ' object '
+            .'ORDER BY object.date ASC';
 
+        $parser = new MockEntityDoctrineParser();
+
+        $parsed = $parser->parse($ruleGroup, ['date' => 'ASC']);
+
+        self::assertEquals($expectedDql, $parsed->getQueryString());
+        self::assertEquals([], $parsed->getParameters());
+    }
+
+    public function testRuleGroupAndMultipleSortColumns()
+    {
         $ruleGroup = (new RuleGroup(RuleGroupInterface::MODE_OR))
             ->addRule(new Rule('rule_id', 'price', 'double', 'is_not_null', null))
             ->addRule(new Rule('rule_id', 'name', 'string', 'equal', 'hello'))
@@ -101,34 +85,35 @@ class DoctrineParserTest extends TestCase
             ->addRule(new Rule('rule_id', 'name', 'string', 'is_empty', null))
             ->addRule(new Rule('rule_id', 'name', 'string', 'is_not_empty', null))
         ;
-        $testCases[] = [new DoctrineParserTestCase(
-            new MockEntityDoctrineParser(),
-            $ruleGroup,
-            [
-                'price' => 'ASC',
-                'name' => 'DESC',
-            ],
-            sprintf(
-                'SELECT object FROM %s object '.
-                'WHERE ( object.price IS NOT NULL OR object.name = ?0'.
-                ' OR object.name LIKE ?1 OR object.name NOT LIKE ?2'.
-                ' OR object.name LIKE ?3 OR object.name LIKE ?4'.
-                ' OR object.name NOT LIKE ?5 OR object.name NOT LIKE ?6'.
-                ' OR object.name = \'\' OR object.name != \'\' )'.
-                ' ORDER BY object.price ASC, object.name DESC',
-                MockEntity::class
-            ),
-            [
-                'hello',
-                '%world%',
-                '%world%',
-                'world%',
-                '%world',
-                'world%',
-                '%world',
-            ]
-        )];
+        $sortColumns = ['price' => 'ASC', 'name' => 'DESC'];
+        $expectedDql = 'SELECT object FROM ' . MockEntity::class . ' object'
+            . ' WHERE ( object.price IS NOT NULL OR object.name = ?0'
+            . ' OR object.name LIKE ?1 OR object.name NOT LIKE ?2'
+            . ' OR object.name LIKE ?3 OR object.name LIKE ?4'
+            . ' OR object.name NOT LIKE ?5 OR object.name NOT LIKE ?6'
+            . ' OR object.name = \'\' OR object.name != \'\' )'
+            . ' ORDER BY object.price ASC, object.name DESC'
+        ;
+        $expectedParameters = [
+            'hello',
+            '%world%',
+            '%world%',
+            'world%',
+            '%world',
+            'world%',
+            '%world',
+        ];
 
+        $parser = new MockEntityDoctrineParser();
+
+        $parsed = $parser->parse($ruleGroup, $sortColumns);
+
+        self::assertEquals($expectedDql, $parsed->getQueryString());
+        self::assertEquals($expectedParameters, $parsed->getParameters());
+    }
+
+    public function testNestedRuleGroups()
+    {
         $ruleGroup = (new RuleGroup(RuleGroupInterface::MODE_AND))
             ->addRule(new Rule('rule_id', 'price', 'double', 'is_not_null', null))
             ->addRule(new Rule('rule_id', 'name', 'string', 'equal', 'hello'))
@@ -138,60 +123,53 @@ class DoctrineParserTest extends TestCase
                     ->addRule(new Rule('rule_id', 'price', 'double', 'less_or_equal', 22.0))
             )
         ;
+        $sortColumns = [
+            'name' => 'DESC',
+            'price' => 'ASC',
+        ];
+        $expectedDql = 'SELECT object FROM ' . MockEntity::class . ' object'
+            .' WHERE ( object.price IS NOT NULL AND object.name = ?0'
+            .' AND ( object.price > ?1 OR object.price <= ?2 ) )'
+            .' ORDER BY object.name DESC, object.price ASC'
+        ;
+        $expectedParameters = ['hello', 0.3, 22.0];
 
-        $testCases[] = [new DoctrineParserTestCase(
-            new MockEntityDoctrineParser(),
-            $ruleGroup,
-            [
-                'name' => 'DESC',
-                'price' => 'ASC',
-            ],
-            sprintf(
-                'SELECT object FROM %s object '.
-                'WHERE ( object.price IS NOT NULL AND object.name = ?0 '.
-                'AND ( object.price > ?1 OR object.price <= ?2 ) ) '.
-                'ORDER BY object.name DESC, object.price ASC',
-                MockEntity::class
-            ),
-            ['hello', 0.3, 22.0]
-        )];
+        $parser = new MockEntityDoctrineParser();
 
-        return $testCases;
+        $parsed = $parser->parse($ruleGroup, $sortColumns);
+
+        self::assertEquals($expectedDql, $parsed->getQueryString());
+        self::assertEquals($expectedParameters, $parsed->getParameters());
     }
 
-    public function associationParseCasesProvider(): array
+    public function testAssociationClassParsedToJoin()
     {
-        $testCases = [];
 
         $ruleGroup = (new RuleGroup(RuleGroupInterface::MODE_AND))
             ->addRule(new Rule('rule_id', 'price', 'double', 'is_not_null', null))
             ->addRule(new Rule('rule_id', 'associationEntity.id', 'string', 'equal', 'hello'))
         ;
+        $sortColumns = [
+            'name' => 'DESC',
+            'associationEntity.id' => 'ASC',
+        ];
+        $expectedDql = 'SELECT object, object_associationEntity FROM ' . MockEntity::class . ' object'
+            .' LEFT JOIN object.associationEntity object_associationEntity'
+            .' WHERE ( object.price IS NOT NULL AND object_associationEntity.id = ?0 )'
+            .' ORDER BY object.name DESC, object_associationEntity.id ASC'
+        ;
+        $expectedParameters = ['hello'];
 
-        $testCases[] = [new DoctrineParserTestCase(
-            new MockEntityWithAssociationDoctrineParser(),
-            $ruleGroup,
-            [
-                'name' => 'DESC',
-                'associationEntity.id' => 'ASC',
-            ],
-            sprintf(
-                'SELECT object, object_associationEntity FROM %s object '.
-                'LEFT JOIN object.associationEntity object_associationEntity '.
-                'WHERE ( object.price IS NOT NULL AND object_associationEntity.id = ?0 ) '.
-                'ORDER BY object.name DESC, object_associationEntity.id ASC',
-                MockEntity::class
-            ),
-            ['hello']
-        )];
+        $parser = new MockEntityWithAssociationDoctrineParser();
 
-        return $testCases;
+        $parsed = $parser->parse($ruleGroup, $sortColumns);
+
+        self::assertEquals($expectedDql, $parsed->getQueryString());
+        self::assertEquals($expectedParameters, $parsed->getParameters());
     }
 
-    public function embeddableParseCasesProvider(): array
+    public function testEmbeddablesNotParsedToJoin()
     {
-        $testCases = [];
-
         $dateA = new \DateTimeImmutable('now - 2 days');
         $dateB = new \DateTimeImmutable('now + 2 days');
         $ruleGroup = (new RuleGroup(RuleGroupInterface::MODE_AND))
@@ -204,36 +182,36 @@ class DoctrineParserTest extends TestCase
             ->addRule(new Rule('rule_id', 'embeddable.embeddableInsideEmbeddable.code', 'string', 'equal', 'goodbye'))
             ->addRule(new Rule('rule_id', 'associationEntity.embeddable.embeddableInsideEmbeddable.code', 'string', 'equal', 'cool'))
         ;
-        $testCases[] = [new DoctrineParserTestCase(
-            new MockEntityWithEmbeddableDoctrineParser(),
-            $ruleGroup,
-            [
-                'name' => 'DESC',
-                'associationEntity.id' => 'ASC',
-                'associationEntity.embeddable.startDate' => 'ASC',
-                'associationEntity.associationEntity.embeddable.startDate' => 'DESC',
-                'embeddable.embeddableInsideEmbeddable.code' => 'ASC',
-                'associationEntity.embeddable.embeddableInsideEmbeddable.code' => 'DESC',
-            ],
-            sprintf(
-                'SELECT object, object_associationEntity FROM %s object '.
-                'LEFT JOIN object.associationEntity object_associationEntity '.
-                'WHERE ( object.price IS NOT NULL AND object_associationEntity.id = ?0 '.
-                'AND object.embeddable.startDate = ?1 AND object_associationEntity.embeddable.startDate = ?2 '.
-                'AND object_associationEntity.embeddable.endDate = ?3 '.
-                'AND object_associationEntity_associationEntity.embeddable.startDate = ?4 '.
-                'AND object.embeddable.embeddableInsideEmbeddable.code = ?5 '.
-                'AND object_associationEntity.embeddable.embeddableInsideEmbeddable.code = ?6 ) '.
-                'ORDER BY object.name DESC, object_associationEntity.id ASC, '.
-                'object_associationEntity.embeddable.startDate ASC, '.
-                'object_associationEntity_associationEntity.embeddable.startDate DESC, '.
-                'object.embeddable.embeddableInsideEmbeddable.code ASC, '.
-                'object_associationEntity.embeddable.embeddableInsideEmbeddable.code DESC',
-                MockEntity::class
-            ),
-            ['hello', $dateA, $dateA, $dateB, $dateA, 'goodbye', 'cool']
-        )];
+        $sortColumns = [
+            'name' => 'DESC',
+            'associationEntity.id' => 'ASC',
+            'associationEntity.embeddable.startDate' => 'ASC',
+            'associationEntity.associationEntity.embeddable.startDate' => 'DESC',
+            'embeddable.embeddableInsideEmbeddable.code' => 'ASC',
+            'associationEntity.embeddable.embeddableInsideEmbeddable.code' => 'DESC',
+        ];
 
-        return $testCases;
+        $expectedDql = 'SELECT object, object_associationEntity FROM ' . MockEntity::class . ' object'
+            .' LEFT JOIN object.associationEntity object_associationEntity'
+            .' WHERE ( object.price IS NOT NULL AND object_associationEntity.id = ?0'
+            .' AND object.embeddable.startDate = ?1 AND object_associationEntity.embeddable.startDate = ?2'
+            .' AND object_associationEntity.embeddable.endDate = ?3'
+            .' AND object_associationEntity_associationEntity.embeddable.startDate = ?4'
+            .' AND object.embeddable.embeddableInsideEmbeddable.code = ?5'
+            .' AND object_associationEntity.embeddable.embeddableInsideEmbeddable.code = ?6 )'
+            .' ORDER BY object.name DESC, object_associationEntity.id ASC,'
+            .' object_associationEntity.embeddable.startDate ASC,'
+            .' object_associationEntity_associationEntity.embeddable.startDate DESC,'
+            .' object.embeddable.embeddableInsideEmbeddable.code ASC,'
+            .' object_associationEntity.embeddable.embeddableInsideEmbeddable.code DESC'
+        ;
+        $expectedParameters = ['hello', $dateA, $dateA, $dateB, $dateA, 'goodbye', 'cool'];
+
+        $parser = new MockEntityWithEmbeddableDoctrineParser();
+
+        $parsed = $parser->parse($ruleGroup, $sortColumns);
+
+        self::assertEquals($expectedDql, $parsed->getQueryString());
+        self::assertEquals($expectedParameters, $parsed->getParameters());
     }
 }

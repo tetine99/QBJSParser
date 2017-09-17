@@ -79,11 +79,7 @@ abstract class WherePartialParser
         static::$dqlPartialWhereString .= $prepend ?? '';
         $iteration = 0;
 
-        if ($ruleGroup->getMode() === RuleGroupInterface::MODE_AND) {
-            $andOr = ' AND ';
-        } else {
-            $andOr = ' OR ';
-        }
+        $andOr = $ruleGroup->getMode() === RuleGroupInterface::MODE_AND ? ' AND ' : ' OR ';
 
         foreach ($ruleGroup->getRules() as $rule) {
             if ($iteration === 0) {
@@ -234,21 +230,23 @@ abstract class WherePartialParser
      */
     final private static function transformValueAccordingToQueryBuilderOperator(string $queryBuilderOperator, $value)
     {
-        if (is_string($value)) {
-            switch ($queryBuilderOperator) {
-                case 'begins_with':
-                case 'not_begins_with':
-                    return $value.'%';
-                case 'contains':
-                case 'not_contains':
-                    return '%'.$value.'%';
-                case 'ends_with':
-                case 'not_ends_with':
-                    return '%'.$value;
-            }
+        if (!is_string($value)) {
+            return $value;
         }
 
-        return $value;
+        switch ($queryBuilderOperator) {
+            case 'begins_with':
+            case 'not_begins_with':
+                return $value.'%';
+            case 'contains':
+            case 'not_contains':
+                return '%'.$value.'%';
+            case 'ends_with':
+            case 'not_ends_with':
+                return '%'.$value;
+            default:
+                return $value;
+        }
     }
 
     /**
