@@ -4,6 +4,9 @@ namespace FL\QBJSParser\Parser\Doctrine;
 
 abstract class FromPartialParser
 {
+	/**
+	 * @codeCoverageIgnore
+	 */
     final private function __construct()
     {
     }

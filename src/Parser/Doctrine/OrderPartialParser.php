@@ -11,6 +11,9 @@ abstract class OrderPartialParser
      */
     private static $queryBuilderFieldsToOrderAlias;
 
+	/**
+	 * @codeCoverageIgnore
+	 */
     final private function __construct()
     {
     }

@@ -25,6 +25,9 @@ abstract class WherePartialParser
      */
     private static $queryBuilderFieldsToWhereAlias;
 
+	/**
+	 * @codeCoverageIgnore
+	 */
     final private function __construct()
     {
     }
