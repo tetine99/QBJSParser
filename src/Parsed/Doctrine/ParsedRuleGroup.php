@@ -111,7 +111,7 @@ class ParsedRuleGroup extends AbstractParsedRuleGroup
         $count = 0;
         $newDql = str_replace($search, $replace, $this->getQueryString(), $count);
 
-        if ($count === 0) {
+        if (0 === $count) {
             $newDql = $this->getQueryString().$appendToEndIfNotFound;
         }
 
@@ -134,7 +134,7 @@ class ParsedRuleGroup extends AbstractParsedRuleGroup
         $count = 0;
         $newDql = preg_replace($pattern, $replace, $this->getQueryString(), -1, $count);
 
-        if ($count === 0) {
+        if (0 === $count) {
             $newDql = $this->getQueryString().$appendToEndIfNotFound;
         }
 

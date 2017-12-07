@@ -113,7 +113,7 @@ class JsonDeserializer implements DeserializerInterface
      */
     private function convertValueAccordingToType(string $type, $value)
     {
-        if (is_null($value) || $value === 'null' || $value === 'NULL') {
+        if (is_null($value) || 'null' === $value || 'NULL' === $value) {
             return null;
         }
 

@@ -60,8 +60,8 @@ abstract class WherePartialParser
 
         // populate static::$dqlPartialWhereString and static::$parameters
         if (!(
-            count($ruleGroup->getRuleGroups()) === 0
-            && count($ruleGroup->getRules()) === 0
+            0 === count($ruleGroup->getRuleGroups())
+            && 0 === count($ruleGroup->getRules())
         )) {
             static::parseRuleGroup($ruleGroup, ' WHERE ( ', ' ) ');
         }
@@ -79,10 +79,10 @@ abstract class WherePartialParser
         static::$dqlPartialWhereString .= $prepend ?? '';
         $iteration = 0;
 
-        $andOr = $ruleGroup->getMode() === RuleGroupInterface::MODE_AND ? ' AND ' : ' OR ';
+        $andOr = RuleGroupInterface::MODE_AND === $ruleGroup->getMode() ? ' AND ' : ' OR ';
 
         foreach ($ruleGroup->getRules() as $rule) {
-            if ($iteration === 0) {
+            if (0 === $iteration) {
                 static::parseRule($rule, ' ', ' ');
             } else {
                 static::parseRule($rule, ' '.$andOr.' ', ' ');
@@ -91,7 +91,7 @@ abstract class WherePartialParser
         }
 
         foreach ($ruleGroup->getRuleGroups() as $ruleGroup) {
-            if ($iteration === 0) {
+            if (0 === $iteration) {
                 static::parseRuleGroup($ruleGroup, ' ( ', ' ) ');
             } else {
                 static::parseRuleGroup($ruleGroup, ' '.$andOr.' ( ', ' ) ');

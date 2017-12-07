@@ -57,7 +57,7 @@ class DoctrineParserTest extends TestCase
         $ruleGroup = (new RuleGroup(RuleGroupInterface::MODE_AND))
             ->addRule(new Rule('rule_id', 'price', 'double', 'is_not_null', null))
         ;
-        $expectedDql = 'SELECT object FROM ' . MockEntity::class . ' object'
+        $expectedDql = 'SELECT object FROM '.MockEntity::class.' object'
             .' WHERE ( object.price IS NOT NULL )'
             .' ORDER BY object.price ASC'
         ;
@@ -72,7 +72,7 @@ class DoctrineParserTest extends TestCase
     public function testNoRuleAndOrderBy()
     {
         $ruleGroup = new RuleGroup(RuleGroupInterface::MODE_AND);
-        $expectedDql = 'SELECT object FROM ' . MockEntity::class . ' object '
+        $expectedDql = 'SELECT object FROM '.MockEntity::class.' object '
             .'ORDER BY object.date ASC';
 
         $parser = new MockEntityDoctrineParser();
@@ -88,7 +88,7 @@ class DoctrineParserTest extends TestCase
             ->addRule(new Rule('rule_id', 'date', 'date', 'in', [new \DateTimeImmutable('2017-09-18')]))
             ->addRule(new Rule('rule_id', 'date', 'date', 'between', [new \DateTimeImmutable('2017-09-17'), new \DateTimeImmutable('2017-09-19')]))
         ;
-        $expectedDql = 'SELECT object FROM ' . MockEntity::class . ' object'
+        $expectedDql = 'SELECT object FROM '.MockEntity::class.' object'
             .' WHERE ( object.date IN (?0) AND object.date BETWEEN ?1 AND ?2 )'
         ;
 
@@ -113,13 +113,13 @@ class DoctrineParserTest extends TestCase
             ->addRule(new Rule('rule_id', 'name', 'string', 'is_not_empty', null))
         ;
         $sortColumns = ['price' => 'ASC', 'name' => 'DESC'];
-        $expectedDql = 'SELECT object FROM ' . MockEntity::class . ' object'
-            . ' WHERE ( object.price IS NOT NULL OR object.name = ?0'
-            . ' OR object.name LIKE ?1 OR object.name NOT LIKE ?2'
-            . ' OR object.name LIKE ?3 OR object.name LIKE ?4'
-            . ' OR object.name NOT LIKE ?5 OR object.name NOT LIKE ?6'
-            . ' OR object.name = \'\' OR object.name != \'\' )'
-            . ' ORDER BY object.price ASC, object.name DESC'
+        $expectedDql = 'SELECT object FROM '.MockEntity::class.' object'
+            .' WHERE ( object.price IS NOT NULL OR object.name = ?0'
+            .' OR object.name LIKE ?1 OR object.name NOT LIKE ?2'
+            .' OR object.name LIKE ?3 OR object.name LIKE ?4'
+            .' OR object.name NOT LIKE ?5 OR object.name NOT LIKE ?6'
+            .' OR object.name = \'\' OR object.name != \'\' )'
+            .' ORDER BY object.price ASC, object.name DESC'
         ;
         $expectedParameters = [
             'hello',
@@ -154,7 +154,7 @@ class DoctrineParserTest extends TestCase
             'name' => 'DESC',
             'price' => 'ASC',
         ];
-        $expectedDql = 'SELECT object FROM ' . MockEntity::class . ' object'
+        $expectedDql = 'SELECT object FROM '.MockEntity::class.' object'
             .' WHERE ( object.price IS NOT NULL AND object.name = ?0'
             .' AND ( object.price > ?1 OR object.price <= ?2 ) )'
             .' ORDER BY object.name DESC, object.price ASC'
@@ -171,7 +171,6 @@ class DoctrineParserTest extends TestCase
 
     public function testAssociationClassParsedToJoin()
     {
-
         $ruleGroup = (new RuleGroup(RuleGroupInterface::MODE_AND))
             ->addRule(new Rule('rule_id', 'price', 'double', 'is_not_null', null))
             ->addRule(new Rule('rule_id', 'associationEntity.id', 'string', 'equal', 'hello'))
@@ -180,7 +179,7 @@ class DoctrineParserTest extends TestCase
             'name' => 'DESC',
             'associationEntity.id' => 'ASC',
         ];
-        $expectedDql = 'SELECT object, object_associationEntity FROM ' . MockEntity::class . ' object'
+        $expectedDql = 'SELECT object, object_associationEntity FROM '.MockEntity::class.' object'
             .' LEFT JOIN object.associationEntity object_associationEntity'
             .' WHERE ( object.price IS NOT NULL AND object_associationEntity.id = ?0 )'
             .' ORDER BY object.name DESC, object_associationEntity.id ASC'
@@ -218,7 +217,7 @@ class DoctrineParserTest extends TestCase
             'associationEntity.embeddable.embeddableInsideEmbeddable.code' => 'DESC',
         ];
 
-        $expectedDql = 'SELECT object, object_associationEntity FROM ' . MockEntity::class . ' object'
+        $expectedDql = 'SELECT object, object_associationEntity FROM '.MockEntity::class.' object'
             .' LEFT JOIN object.associationEntity object_associationEntity'
             .' WHERE ( object.price IS NOT NULL AND object_associationEntity.id = ?0'
             .' AND object.embeddable.startDate = ?1 AND object_associationEntity.embeddable.startDate = ?2'

@@ -179,7 +179,7 @@ class Rule implements RuleInterface
     {
         if (!array_key_exists($this->type, self::TYPES_OPERATORS)) {
             throw new RuleConstructionException(sprintf(
-                "Invalid type %s",
+                'Invalid type %s',
                 $this->type,
                 $this->operator
             ));
@@ -193,7 +193,7 @@ class Rule implements RuleInterface
     {
         if (!in_array($this->operator, self::TYPES_OPERATORS[$this->type])) {
             throw new RuleConstructionException(sprintf(
-                "Invalid operator %s for type %s",
+                'Invalid operator %s for type %s',
                 $this->operator,
                 $this->type
             ));
@@ -239,14 +239,14 @@ class Rule implements RuleInterface
      */
     private function validate_ValueIsArray()
     {
-        if ($this->valueType($this->value) !== 'array') {
+        if ('array' !== $this->valueType($this->value)) {
             return;
         }
 
         foreach ($this->value as $element) {
             $elementValueType = $this->valueType($element);
             $allowedValueTypes = array_filter(self::TYPES_VALUETYPES[$this->type], function ($allowedValueType) {
-                return $allowedValueType !== 'array';
+                return 'array' !== $allowedValueType;
             }, ARRAY_FILTER_USE_BOTH);
 
             if (!in_array($elementValueType, $allowedValueTypes)) {
@@ -270,12 +270,12 @@ class Rule implements RuleInterface
          * Don't throw an exception if the valueType is not an array,
          * @see Rule::validate_Operator_ValueType() is in charge of that
          */
-        if (!in_array($this->operator, ['between', 'not_between']) || $this->valueType($this->value) !== 'array') {
+        if (!in_array($this->operator, ['between', 'not_between']) || 'array' !== $this->valueType($this->value)) {
             return;
         }
 
         $valueCount = count($this->value);
-        if ($valueCount === 2) {
+        if (2 === $valueCount) {
             return;
         }
 
@@ -340,7 +340,7 @@ class Rule implements RuleInterface
     public function valueType($value): string
     {
         $valueType = gettype($value);
-        if (gettype($value) === 'object') {
+        if ('object' === gettype($value)) {
             return get_class($value);
         }
 
